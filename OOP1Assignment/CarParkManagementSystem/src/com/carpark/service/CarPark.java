@@ -35,7 +35,8 @@ public class CarPark {
             System.out.println("1. Add a Vehicle");
             System.out.println("2. Remove a Vehicle");
             System.out.println("3. View Parked Vehicles");
-            System.out.println("4. Exit");
+            System.out.println("4. View Parking Tickets");
+            System.out.println("5. Exit");
             System.out.print("Please select an option: ");
 
             try {
@@ -45,14 +46,15 @@ public class CarPark {
                     case 1 -> carPark.addVehicle(); // interactive
                     case 2 -> carPark.removeVehicle();
                     case 3 -> carPark.viewParkedVehicles();
-                    case 4 -> {
+                    case 4 -> carPark.viewParkingTickets();
+                    case 5 -> {
                         System.out.println("Thank you for using the Car Park Management System. Goodbye!");
                         running = false;
                     }
                     default -> System.out.println("Invalid option. Please try again.");
                 }
             } catch (InputMismatchException e) {
-                System.out.println("Invalid input. Please enter a number between 1 and 4.");
+                System.out.println("Invalid input. Please enter a number between 1 and 5.");
                 scanner.nextLine(); // Clear invalid input
             }
         }
@@ -218,6 +220,20 @@ public class CarPark {
 
         // Always display occupancy summary at the end
         System.out.printf("%d out of %d spaces occupied.%n", vehicles.size(), capacity);
+    }
+
+    public void viewParkingTickets() {
+        System.out.println("Parking Tickets Issued:");
+
+        if (tickets.isEmpty()) {
+            System.out.println("No parking tickets issued.");
+        } else {
+            for (Ticket ticket : tickets) {
+                System.out.println(ticket);
+            }
+        }
+
+        System.out.printf("Total tickets issued: %d%n", tickets.size());
     }
 
     // Varargs helper: print vehicles matching one or more type names (e.g., "Car", "Van")

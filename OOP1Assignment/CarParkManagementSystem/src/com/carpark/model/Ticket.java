@@ -2,6 +2,7 @@ package com.carpark.model;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Optional;
 
 public record Ticket(
     String registrationNo,
@@ -9,6 +10,7 @@ public record Ticket(
     LocalDateTime exitTime,
     double parkingFee
 ) {
+
     @Override
     public String toString() {
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");

@@ -26,6 +26,11 @@ import java.text.NumberFormat;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
 public class CarPark {
 
     static Scanner scanner = new Scanner(System.in);
@@ -58,8 +63,9 @@ public class CarPark {
             System.out.println("5. Vehicle Reports");
             System.out.println("6. Revenue Statistics");
             System.out.println("7. Save Tickets to File");
-            System.out.println("8. Localisation Demo");
-            System.out.println("9. Exit");
+            System.out.println("8. Calculate All Fees Concurrently");
+            System.out.println("9. Localisation Demo");
+            System.out.println("10. Exit");
             System.out.print("Please select an option: ");
 
             try {
@@ -73,8 +79,9 @@ public class CarPark {
                     case 5 -> carPark.vehicleReports();
                     case 6 -> carPark.revenueStatistics();
                     case 7 -> carPark.saveTicketsToFile();
-                    case 8 -> carPark.showLocalisationDemo();
-                    case 9 -> {
+                    case 8 -> carPark.calculateAllFeesCurrently();
+                    case 9 -> carPark.showLocalisationDemo();
+                    case 10 -> {
                         System.out.println("Thank you for using the Car Park Management System. Goodbye!");
                         running = false;
                     }
@@ -109,6 +116,44 @@ public class CarPark {
         } catch (InputMismatchException e) {
             System.out.println("Invalid input.");
             scanner.nextLine();
+        }
+    }
+
+    // Concurrency: ExecutorService manages a pool of threads
+    // Callable<T> is a task that returns a value — here it calculates a fee for one vehicle
+    // Future<T> holds the result of a Callable that may not have finished yet
+    // invokeAll() submits all Callables at once and waits for all to complete
+    public void calculateAllFeesCurrently(){
+        System.out.println("\nCalculating parking fees for all currently parked vehicles...");
+
+        if (vehicles.isEmpty()) {
+            System.out.println("No vehicles currently parked.");
+            return;
+        }
+
+        ExecutorService executorService = Executors.newFixedThreadPool(vehicles.size());
+
+        try {
+            List<Callable<String>> tasks = vehicles.stream()
+                    .map(vehicle -> (Callable<String>) () -> {
+                        double fee = feeCalculator.calculateFee(vehicle, LocalDateTime.now());
+                        return String.format("Vehicle %s (%s): %s",
+                                vehicle.getRegistrationNo(),
+                                vehicle.getType(),
+                                ParkingFeeCalculator.format(fee));
+                    })
+                    .collect(Collectors.toList());
+
+            List<Future<String>> results = executorService.invokeAll(tasks);
+
+            for (Future<String> result : results) {
+                System.out.println(" " +result.get());
+            }
+        }catch (Exception e) {
+            System.out.println("Error calculating fees: " + e.getMessage());
+        } finally {
+            executorService.shutdown();
+            System.out.println("Fee calculation completed.");
         }
     }
 

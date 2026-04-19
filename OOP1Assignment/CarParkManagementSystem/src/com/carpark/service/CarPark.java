@@ -15,6 +15,12 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.io.IOException;
+
 public class CarPark {
 
     static Scanner scanner = new Scanner(System.in);
@@ -35,6 +41,7 @@ public class CarPark {
 
     public static void mainMenu() {
         CarPark carPark = new CarPark();
+        carPark.loadTicketsFromFile();
         boolean running = true;
 
         while (running) {
@@ -45,7 +52,8 @@ public class CarPark {
             System.out.println("4. View Parking Tickets");
             System.out.println("5. Vehicle Reports");
             System.out.println("6. Revenue Statistics");
-            System.out.println("7. Exit");
+            System.out.println("7. Save Tickets to File");
+            System.out.println("8. Exit");
             System.out.print("Please select an option: ");
 
             try {
@@ -58,7 +66,8 @@ public class CarPark {
                     case 4 -> carPark.viewParkingTickets();
                     case 5 -> carPark.vehicleReports();
                     case 6 -> carPark.revenueStatistics();
-                    case 7 -> {
+                    case 7 -> carPark.saveTicketsToFile();
+                    case 8 -> {
                         System.out.println("Thank you for using the Car Park Management System. Goodbye!");
                         running = false;
                     }
@@ -93,6 +102,33 @@ public class CarPark {
         } catch (InputMismatchException e) {
             System.out.println("Invalid input.");
             scanner.nextLine();
+        }
+    }
+
+    // NIO2: Files and Path from java.nio.file
+    // Files.write() writes a list of strings to a file, creating it if it doesn't exist
+    // map() transforms each Ticket record into a CSV string — intermediate operation
+    // collect() gathers the strings into a List<String> for writing — terminal operation
+    public void saveTicketsToFile(){
+        Path path = Paths.get("tickets.txt");
+
+        try {
+            List<String> lines = tickets.stream()
+                    .map(ticket -> String.format("%s,%s,%s,%.2f",
+                            ticket.registrationNo(),
+                            ticket.entryTime(),
+                            ticket.exitTime(),
+                            ticket.parkingFee()))
+                    .collect(Collectors.toList());
+
+            Files.write(path, lines,
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING);
+
+            System.out.println("Tickets saved to " + path.toAbsolutePath());
+
+        } catch (IOException e) {
+            System.out.println("Error writing tickets to file: " + e.getMessage());
         }
     }
 
@@ -262,6 +298,38 @@ public class CarPark {
         }
     }
 
+    // NIO2: Files.readAllLines() reads all lines from a file into a List<String>
+    // Each line is split by comma and parsed back into a Ticket record
+    // Called automatically on startup so tickets persist between sessions
+    public void loadTicketsFromFile(){
+        Path path = Paths.get("tickets.txt");
+
+        if (!Files.exists(path)) {
+            System.out.println("No existing ticket file found.");
+            return;
+        }
+
+        try {
+            List<String> lines = Files.readAllLines(path);
+
+            for (String line : lines) {
+                String[] parts = line.split(",");
+                if (parts.length == 4) {
+                    String reg = parts[0];
+                    LocalDateTime entry = LocalDateTime.parse(parts[1]);
+                    LocalDateTime exit = LocalDateTime.parse(parts[2]);
+                    double fee = Double.parseDouble(parts[3]);
+                    tickets.add(new Ticket(reg, entry, exit, fee));
+                }
+            }
+
+            System.out.println("Loaded " + tickets.size() + " tickets from file.");
+
+        } catch (IOException e) {
+            System.out.println("Error reading tickets from file: " + e.getMessage());
+        }
+    }
+
     // Switch expression with pattern matching — checks the type AND binds to a pattern variable
     // in a single step, removing the need for an explicit cast
     // No default needed — Vehicle is sealed so the compiler knows all possible subtypes
@@ -310,7 +378,7 @@ public class CarPark {
             vans.forEach(printVehicle);
         }
 
-        System.out.println("\nVans (" + nonVans.size() + "):");
+        System.out.println("\nNon-Vans (" + nonVans.size() + "):");
         if (nonVans.isEmpty()) {
             System.out.println("No vans currently parked.");
         } else {

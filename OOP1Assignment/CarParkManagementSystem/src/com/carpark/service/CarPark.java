@@ -65,7 +65,8 @@ public class CarPark {
             System.out.println("7. Save Tickets to File");
             System.out.println("8. Calculate All Fees Concurrently");
             System.out.println("9. Localisation Demo");
-            System.out.println("10. Exit");
+            System.out.println("10. View First N Vehicles Per Type");
+            System.out.println("11. Exit");
             System.out.print("Please select an option: ");
 
             try {
@@ -81,7 +82,8 @@ public class CarPark {
                     case 7 -> carPark.saveTicketsToFile();
                     case 8 -> carPark.calculateAllFeesCurrently();
                     case 9 -> carPark.showLocalisationDemo();
-                    case 10 -> {
+                    case 10 -> carPark.viewFirstNVehiclesPerType();
+                    case 11 -> {
                         System.out.println("Thank you for using the Car Park Management System. Goodbye!");
                         running = false;
                     }
@@ -93,6 +95,24 @@ public class CarPark {
             }
         }
         scanner.close();
+    }
+
+    // Stream Gatherers (Java 25)
+    public void viewFirstNVehiclesPerType(){
+        System.out.println("\nEnter number of vehicles per type to view (e.g., 2): ");
+        int n;
+        try {
+            n = scanner.nextInt();
+            scanner.nextLine();
+        } catch (InputMismatchException e) {
+            System.out.println("Invalid input. Please enter a valid number.");
+            scanner.nextLine();
+            return;
+        }
+
+        System.out.println("\nFirst " + n + " vehicles per type:");
+
+        vehicles.stream().gather(VehicleGatherers.firstNPerType(n)).forEach(printVehicle);
     }
 
     // Submenu for revenue statistics
@@ -123,38 +143,57 @@ public class CarPark {
     // Callable<T> is a task that returns a value — here it calculates a fee for one vehicle
     // Future<T> holds the result of a Callable that may not have finished yet
     // invokeAll() submits all Callables at once and waits for all to complete
+    // ScopedValue: the attendant name is bound to the scope and readable by all threads
     public void calculateAllFeesCurrently(){
-        System.out.println("\nCalculating parking fees for all currently parked vehicles...");
+        System.out.print("Enter attendant name for this session: ");
+        String attendantName = scanner.nextLine().trim();
 
-        if (vehicles.isEmpty()) {
-            System.out.println("No vehicles currently parked.");
-            return;
-        }
+        // ScopedValue.where() binds the value for the duration of the lambda scope
+        // Any code running within this scope can read ATTENDANT_NAME.get()
+        ScopedValue.where(SessionContext.ATTENDANT_NAME, attendantName).run(() -> {
 
-        ExecutorService executorService = Executors.newFixedThreadPool(vehicles.size());
+            System.out.println("\nCalculating parking fees for all currently parked vehicles...");
+            System.out.println("Session attendant: " + SessionContext.ATTENDANT_NAME.get());
 
-        try {
-            List<Callable<String>> tasks = vehicles.stream()
-                    .map(vehicle -> (Callable<String>) () -> {
-                        double fee = feeCalculator.calculateFee(vehicle, LocalDateTime.now());
-                        return String.format("Vehicle %s (%s): %s",
-                                vehicle.getRegistrationNo(),
-                                vehicle.getType(),
-                                ParkingFeeCalculator.format(fee));
-                    })
-                    .collect(Collectors.toList());
-
-            List<Future<String>> results = executorService.invokeAll(tasks);
-
-            for (Future<String> result : results) {
-                System.out.println(" " +result.get());
+            if (vehicles.isEmpty()) {
+                System.out.println("No vehicles currently parked.");
+                return;
             }
-        }catch (Exception e) {
-            System.out.println("Error calculating fees: " + e.getMessage());
-        } finally {
-            executorService.shutdown();
-            System.out.println("Fee calculation completed.");
-        }
+
+            ExecutorService executor = Executors.newFixedThreadPool(vehicles.size());
+
+            try {
+                List<Callable<String>> tasks = vehicles.stream()
+                        .map(vehicle -> {
+                            // Runs on the main thread — still within the ScopedValue scope
+                            // Capture the value here before handing off to the ExecutorService thread
+                            String attendant = SessionContext.ATTENDANT_NAME.get();
+                            return (Callable<String>) () -> {
+                                // Runs on ExecutorService thread — outside the scope
+                                // Uses the already-captured attendant variable instead
+                                double fee = feeCalculator.calculateFee(vehicle, LocalDateTime.now());
+                                return "[" + vehicle.getType() + "] "
+                                        + vehicle.getRegistrationNo()
+                                        + " — projected fee: "
+                                        + ParkingFeeCalculator.format(fee)
+                                        + " (logged by: " + attendant + ")";
+                            };
+                        })
+                        .collect(Collectors.toList());
+
+                List<Future<String>> futures = executor.invokeAll(tasks);
+
+                for (Future<String> future : futures) {
+                    System.out.println("  " + future.get());
+                }
+
+            } catch (Exception e) {
+                System.out.println("Error during concurrent fee calculation: " + e.getMessage());
+            } finally {
+                executor.shutdown();
+                System.out.println("\nAll fees calculated. Executor shut down.");
+            }
+        });
     }
 
     // Localisation: demonstrates how fees and dates are formatted differently by region

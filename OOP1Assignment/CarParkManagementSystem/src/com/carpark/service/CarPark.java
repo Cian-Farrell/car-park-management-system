@@ -21,6 +21,11 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.io.IOException;
 
+import java.util.Locale;
+import java.text.NumberFormat;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
+
 public class CarPark {
 
     static Scanner scanner = new Scanner(System.in);
@@ -53,7 +58,8 @@ public class CarPark {
             System.out.println("5. Vehicle Reports");
             System.out.println("6. Revenue Statistics");
             System.out.println("7. Save Tickets to File");
-            System.out.println("8. Exit");
+            System.out.println("8. Localisation Demo");
+            System.out.println("9. Exit");
             System.out.print("Please select an option: ");
 
             try {
@@ -67,7 +73,8 @@ public class CarPark {
                     case 5 -> carPark.vehicleReports();
                     case 6 -> carPark.revenueStatistics();
                     case 7 -> carPark.saveTicketsToFile();
-                    case 8 -> {
+                    case 8 -> carPark.showLocalisationDemo();
+                    case 9 -> {
                         System.out.println("Thank you for using the Car Park Management System. Goodbye!");
                         running = false;
                     }
@@ -103,6 +110,20 @@ public class CarPark {
             System.out.println("Invalid input.");
             scanner.nextLine();
         }
+    }
+
+    // Localisation: demonstrates how fees and dates are formatted differently by region
+    // Calls LocalisationUtil which uses Locale, NumberFormat and DateTimeFormatter
+    // Uses the most recent ticket's fee and exit time as the sample data
+    public void showLocalisationDemo() {
+        if (tickets.isEmpty()) {
+            System.out.println("No tickets issued yet — add and remove a vehicle first.");
+            return;
+        }
+
+        // Use the most recent ticket as the sample data
+        Ticket latest = tickets.get(tickets.size() - 1);
+        LocalisationUtil.demonstrateLocalisation(latest.parkingFee(), latest.exitTime());
     }
 
     // NIO2: Files and Path from java.nio.file

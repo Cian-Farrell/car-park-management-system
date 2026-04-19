@@ -1,0 +1,90 @@
+@startuml
+skinparam classAttributeIconSize 0
+hide circle
+
+class CarPark {
+  - vehicles : ArrayList<Vehicle>
+  - capacity : int = 50
+  - tickets : ArrayList<Ticket>
+  - feeCalculator : ParkingFeeCalculator
+  --
+  {static} + mainMenu() : void
+  + addVehicle() : void
+  + addVehicle(vehicle : Vehicle) : void
+  + addVehicle(registrationNo : String, ownerName : String, type : String) : void
+  + removeVehicle() : void
+  + viewParkedVehicles() : void
+  + printVehiclesByType(types : String...) : void
+}
+
+abstract class Vehicle <<sealed>> {
+  - registrationNo : String
+  - ownerName : String
+  - type : String
+  - entryTime : LocalDateTime
+  --
+  + getRegistrationNo() : String
+  + getOwnerName() : String
+  + getType() : String
+  + getEntryTime() : LocalDateTime
+  + getRatePerHour() : double
+  + toString() : String
+}
+
+class Car <<final>> {
+  + Car(registrationNo : String, ownerName : String)
+  + getRatePerHour() : double
+}
+
+class Van <<final>> {
+  + Van(registrationNo : String, ownerName : String)
+  + getRatePerHour() : double
+}
+
+class Motorcycle <<final>> {
+  + Motorcycle(registrationNo : String, ownerName : String)
+  + getRatePerHour() : double
+}
+
+enum VehicleType {
+  CAR
+  VAN
+  MOTORCYCLE
+  --
+  + getDisplayName() : String
+  + getRatePerHour() : double
+}
+
+class Ticket <<record>> {
+  + registrationNo : String
+  + entryTime : LocalDateTime
+  + exitTime : LocalDateTime
+  + parkingFee : double
+  --
+  + toString() : String
+}
+
+interface ParkingFeeCalculator {
+  + calculateFee(vehicle : Vehicle, exitTime : LocalDateTime) : double
+  + roundUpHours(entry : LocalDateTime, exit : LocalDateTime) : long
+  {static} + format(fee : double) : String
+}
+
+class StandardFeeCalculator {
+  + calculateFee(vehicle : Vehicle, exitTime : LocalDateTime) : double
+}
+
+Vehicle <|-- Car
+Vehicle <|-- Van
+Vehicle <|-- Motorcycle
+ParkingFeeCalculator <|.. StandardFeeCalculator
+
+CarPark "1" o-- "0..*" Vehicle : manages
+CarPark "1" o-- "0..*" Ticket : issues
+CarPark ..> ParkingFeeCalculator : uses
+Vehicle ..> VehicleType : related
+
+hide circle
+skinparam classAttributeIconSize 0
+
+@enduml
